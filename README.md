@@ -1,2 +1,4 @@
 # zufang-cli
-租房搜索命令行工具
+
+Cross-provider rental listing CLI for public Anjuke and Beike pages.
+
