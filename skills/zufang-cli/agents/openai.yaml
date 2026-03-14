@@ -1,0 +1,4 @@
+interface:
+  display_name: "zufang-cli"
+  short_description: "Search rental listings with the repo CLI."
+  default_prompt: "Use $zufang-cli to search rental listings, inspect cached results, and open listing links in this repository."
