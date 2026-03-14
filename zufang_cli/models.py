@@ -59,6 +59,15 @@ class SearchOptions:
 
 
 @dataclass
+class SearchProgress:
+    completed: int
+    total: int
+    provider: str
+    provider_name: str
+    page: int
+
+
+@dataclass
 class SearchResult:
     items: list[Listing]
     warnings: list[str]

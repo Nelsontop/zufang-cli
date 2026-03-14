@@ -43,7 +43,7 @@ class FakeService:
     def __exit__(self, *args: object) -> None:
         return None
 
-    def search(self, options) -> SearchResult:
+    def search(self, options, progress_callback=None) -> SearchResult:
         return SearchResult(
             items=[self.item],
             warnings=[],

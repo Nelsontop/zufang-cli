@@ -3,7 +3,7 @@
 import json
 from unittest.mock import MagicMock
 
-from zufang_cli.models import Listing
+from zufang_cli.models import Listing, SearchOptions
 from zufang_cli.providers.anjuke import AnjukeProvider
 from zufang_cli.providers.ke import KeProvider
 from zufang_cli.providers.lianjia import LianjiaProvider
@@ -471,4 +471,40 @@ def test_filter_matches_location_tokens_across_fields():
     )
     assert service._filter_items([item], "宝安区西乡", None, None, "all") == [item]
     assert service._filter_items([item], "桥头地铁站", None, None, "all") == [item]
+    service.close()
+
+
+def test_service_reports_progress_updates():
+    service = ZufangService(http_client=MagicMock())
+    service.providers = {
+        "anjuke": MagicMock(
+            display_name="Anjuke",
+            search_page=MagicMock(
+                return_value=[
+                    Listing(
+                        provider="anjuke",
+                        provider_name="Anjuke",
+                        id="123",
+                        title="Sunny room",
+                        url="https://example.com/123",
+                        city_slug="bj",
+                        price=5200,
+                        price_text="5200 yuan/month",
+                    )
+                ]
+            ),
+        )
+    }
+    states = []
+    result = service.search(
+        SearchOptions(keyword="room", city_slug="bj", providers=("anjuke",), pages=1),
+        progress_callback=states.append,
+    )
+    assert result.items[0].city_name == "Beijing"
+    assert len(states) == 1
+    assert states[0].completed == 1
+    assert states[0].total == 1
+    assert states[0].provider == "anjuke"
+    assert states[0].provider_name == "Anjuke"
+    assert states[0].page == 1
     service.close()

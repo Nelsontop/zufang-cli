@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Iterable, Optional
 
 from .cache import get_by_index, get_by_key, save_index
 from .constants import COMMON_CITIES, PROVIDER_NAMES
 from .exceptions import ProviderBlockedError
 from .http import HttpClient
-from .models import Listing, SearchOptions, SearchResult
+from .models import Listing, SearchOptions, SearchProgress, SearchResult
 from .providers import AnjukeProvider, KeProvider, LianjiaProvider, LeyoujiaProvider, QfangProvider, ZufunProvider
 from .query import (
     build_search_token_groups,
@@ -42,12 +43,19 @@ class ZufangService:
     def __exit__(self, *args: object) -> None:
         self.close()
 
-    def search(self, options: SearchOptions) -> SearchResult:
+    def search(
+        self,
+        options: SearchOptions,
+        *,
+        progress_callback: Optional[Callable[[SearchProgress], None]] = None,
+    ) -> SearchResult:
         effective_city, effective_keyword = infer_city_and_keyword(options.keyword, options.city_slug)
         city_slug, city_name = normalize_city_slug(effective_city)
         warnings: list[str] = []
         items: list[Listing] = []
         errors: list[Exception] = []
+        total_steps = max(1, len(options.providers) * options.pages)
+        completed_steps = 0
 
         for provider_name in options.providers:
             provider = self.providers[provider_name]
@@ -59,10 +67,16 @@ class ZufangService:
                     items.extend(page_items)
                 except ProviderBlockedError as exc:
                     warnings.append(f"{provider.display_name}: {exc}")
+                    completed_steps += options.page + options.pages - page
+                    self._emit_progress(progress_callback, completed_steps, total_steps, provider_name, provider.display_name, page)
                     break
                 except Exception as exc:  # pragma: no cover
                     errors.append(exc)
+                    completed_steps += options.page + options.pages - page
+                    self._emit_progress(progress_callback, completed_steps, total_steps, provider_name, provider.display_name, page)
                     break
+                completed_steps += 1
+                self._emit_progress(progress_callback, completed_steps, total_steps, provider_name, provider.display_name, page)
 
         filtered = self._filter_items(items, effective_keyword, options.min_price, options.max_price, options.rent_type)
         sorted_items = self._sort_items(filtered, options.sort)
@@ -142,6 +156,27 @@ class ZufangService:
         if mode == "price_desc":
             return sorted(items, key=lambda item: (item.price is None, -(item.price or 0), item.provider, item.id))
         return items
+
+    def _emit_progress(
+        self,
+        progress_callback: Optional[Callable[[SearchProgress], None]],
+        completed: int,
+        total: int,
+        provider: str,
+        provider_name: str,
+        page: int,
+    ) -> None:
+        if not progress_callback:
+            return
+        progress_callback(
+            SearchProgress(
+                completed=min(completed, total),
+                total=total,
+                provider=provider,
+                provider_name=provider_name,
+                page=page,
+            )
+        )
 
 
 def get_service() -> ZufangService:

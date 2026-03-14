@@ -11,11 +11,12 @@ import click
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 from rich.text import Text
 
 from ..constants import PROVIDER_NAMES
-from ..models import Listing, SearchOptions, SearchResult
+from ..models import Listing, SearchOptions, SearchProgress, SearchResult
 from ..output import console, structured_output_options
 from ..service import get_service
 from ._common import run_command
@@ -190,6 +191,36 @@ def _open_reference(reference: str) -> dict[str, Any]:
     }
 
 
+def _run_search_with_optional_progress(options: SearchOptions, *, show_progress: bool) -> SearchResult:
+    with get_service() as service:
+        if not show_progress:
+            return service.search(options)
+
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[cyan]{task.description}"),
+            BarColumn(bar_width=None),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            console=Console(stderr=True),
+            transient=False,
+        )
+        total_steps = max(1, len(options.providers) * options.pages)
+        with progress:
+            task_id = progress.add_task("Searching listings", total=total_steps)
+
+            def _update(state: SearchProgress) -> None:
+                progress.update(
+                    task_id,
+                    completed=state.completed,
+                    description=f"Searching {state.provider_name} page {state.page}",
+                )
+
+            result = service.search(options, progress_callback=_update)
+            progress.update(task_id, completed=total_steps, description="Search complete")
+            return result
+
+
 @click.command()
 @click.argument("keyword")
 @click.option("-c", "--city", default="bj", help="City slug or Chinese city name, for example sz/shenzhen/\u6df1\u5733.")
@@ -231,8 +262,8 @@ def search(
             rent_type=rent_type,
             sort=sort,
         )
-        with get_service() as service:
-            return service.search(options)
+        show_progress = not (as_json or as_yaml) and console.is_terminal
+        return _run_search_with_optional_progress(options, show_progress=show_progress)
 
     def _render(data: SearchResult) -> None:
         _render_table(data, wide=wide)
