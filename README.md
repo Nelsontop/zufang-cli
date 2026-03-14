@@ -1,5 +1,7 @@
 # zufang-cli
 
+[中文文档](./README.zh-CN.md)
+
 Cross-provider rental listing CLI for Chinese rental sites.
 
 Current providers:
@@ -15,8 +17,8 @@ Current providers:
 - Search rental listings across multiple providers with one command
 - Default table output with source and detail link columns
 - `--json` and `--yaml` structured output for automation
-- Chinese city input such as `--city 深圳`
-- Query splitting for phrases such as `深圳市宝安区西乡`
+- Chinese city input such as `--city Shenzhen` or `--city sz`
+- Query splitting for phrases such as `Shenzhen Baoan Xixiang` or Chinese location phrases
 - Price, rent type, page count, and provider filters
 - `show` for cached result details
 - `open` for opening a cached listing link directly
@@ -42,12 +44,12 @@ zufang --help
 ```bash
 zufang providers
 zufang cities
-zufang search 深圳市宝安区西乡 --city 深圳
-zufang search 西乡 --city 深圳 --provider zufun --limit 5
-zufang search 回龙观 --city 北京 --sort price_desc --wide
+zufang search "Baoan Xixiang" --city sz
+zufang search Xixiang --city sz --provider zufun --limit 5
+zufang search Huilongguan --city bj --sort price_desc --wide
 zufang show 1
 zufang open 1
-zufang export 西乡 --city 深圳 --provider zufun --output rent.csv
+zufang export Xixiang --city sz --provider zufun --output rent.csv
 ```
 
 ## Search Output
@@ -61,14 +63,14 @@ zufang export 西乡 --city 深圳 --provider zufun --output rent.csv
 Example:
 
 ```bash
-zufang search 宝安区西乡 --city 深圳 --provider zufun --limit 5
+zufang search "Baoan Xixiang" --city sz --provider zufun --limit 5
 ```
 
 ## Common Options
 
 ```bash
 zufang search KEYWORD \
-  --city 深圳 \
+  --city sz \
   --provider all \
   --pages 1 \
   --limit 30 \
